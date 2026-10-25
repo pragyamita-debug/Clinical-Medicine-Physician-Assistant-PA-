@@ -265,8 +265,10 @@ export function Hero({ resume, isExample, onUpload, onEdit, onReset }: HeroProps
           </div>
         </div>
         <div className="hero__holo" aria-hidden>
-          <img src={hologram} alt="" />
-          <span className="hero__ring" />
+          <div className="hero__frame">
+            <img src={hologram} alt="" />
+            <span className="hero__ring" />
+          </div>
         </div>
         <ProfileCard resume={resume} isExample={isExample} onUpload={onUpload} onEdit={onEdit} onReset={onReset} />
       </div>
