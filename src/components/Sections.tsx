@@ -53,29 +53,123 @@ function Head({ label, title, id, link }: { label: string; title: React.ReactNod
 
 const STEPS = ['Role', 'Education', 'Skills', 'Contact'];
 
-/** The "book an appointment" card from the design, turned into a 4-step profile card. */
-function ProfileCard({ resume }: { resume: Resume }) {
+/** A select-style field from the design: shows a value with a chevron; when there are options it opens a list. */
+function Field({ label, value, options, onPick }: { label: string; value: string; options?: string[]; onPick?: (i: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+  const pickable = !!options && options.length > 1 && !!onPick;
+  return (
+    <div className="field" ref={ref}>
+      <span className="field__label">{label}</span>
+      <button type="button" className={`field__box ${open ? 'is-open' : ''}`} onClick={() => pickable && setOpen((o) => !o)} aria-haspopup={pickable ? 'listbox' : undefined} aria-expanded={pickable ? open : undefined}>
+        <span>{value}</span>
+        <Icon name="chevronDown" size={15} />
+      </button>
+      {open && options && (
+        <ul className="field__menu" role="listbox">
+          {options.map((o, i) => (
+            <li key={o + i}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={o === value}
+                onClick={() => {
+                  onPick?.(i);
+                  setOpen(false);
+                }}
+              >
+                {o}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Mini({ label, value, icon }: { label: string; value: string; icon: IconName }) {
+  return (
+    <div className="field">
+      <span className="field__label">{label}</span>
+      <span className="field__box field__box--mini">
+        <span>{value}</span>
+        <Icon name={icon} size={15} />
+      </span>
+    </div>
+  );
+}
+
+interface CardProps {
+  resume: Resume;
+  isExample: boolean;
+  onUpload: () => void;
+  onEdit: () => void;
+  onReset: () => void;
+}
+
+/** The design's "Book an Appointment" card, as a 4-step look through the CV (role → education → skills → contact). */
+function ProfileCard({ resume, isExample, onUpload, onEdit, onReset }: CardProps) {
   const [step, setStep] = useState(0);
-  const current = resume.experience[0];
-  const edu = resume.education[0];
-  const rows: Record<number, { label: string; value: string }[]> = {
-    0: [
-      { label: 'Current role', value: current?.role || 'Your role' },
-      { label: 'Organisation', value: current?.company || 'Organisation' },
-      { label: 'Since', value: current?.period || '—' },
-    ],
-    1: [
-      { label: 'Degree', value: edu?.degree || 'Your degree' },
-      { label: 'Institution', value: edu?.institution || 'Institution' },
-      { label: 'Certified', value: resume.certifications[0] || '—' },
-    ],
-    2: resume.skills.slice(0, 3).map((s, i) => ({ label: `Skill ${i + 1}`, value: s })),
-    3: [
-      { label: 'Email', value: resume.email || '—' },
-      { label: 'Phone', value: resume.phone || '—' },
-      { label: 'Based in', value: resume.location || '—' },
-    ],
-  };
+  const [roleI, setRoleI] = useState(0);
+  const [eduI, setEduI] = useState(0);
+  const [skillA, setSkillA] = useState(0);
+  const [skillB, setSkillB] = useState(1);
+  const [via, setVia] = useState(0);
+
+  const roles = resume.experience;
+  const role = roles[roleI];
+  const edus = resume.education;
+  const edu = edus[eduI];
+  const skills = resume.skills;
+  const contacts = [
+    { k: 'Email', v: resume.email },
+    { k: 'Phone', v: resume.phone },
+    { k: 'LinkedIn', v: resume.links.linkedin?.replace(/^https?:\/\/(www\.)?/, '') },
+  ].filter((c) => c.v) as { k: string; v: string }[];
+  const contact = contacts[via] || contacts[0];
+
+  const body = [
+    <>
+      <Field label="Select Role" value={role?.role || 'Your role'} options={roles.map((r) => r.role)} onPick={setRoleI} />
+      <Field label="Organisation" value={role?.company || 'Organisation'} />
+      <div className="field__row">
+        <Mini label="Since" value={role?.period?.split(/\s*[–-]\s*/)[0] || '—'} icon="calendar" />
+        <Mini label="Until" value={role?.period?.split(/\s*[–-]\s*/)[1] || '—'} icon="clock" />
+      </div>
+    </>,
+    <>
+      <Field label="Select Degree" value={edu?.degree || 'Your degree'} options={edus.map((e) => e.degree)} onPick={setEduI} />
+      <Field label="Institution" value={edu?.institution || 'Institution'} />
+      <div className="field__row">
+        <Mini label="Year" value={edu?.year || '—'} icon="calendar" />
+        <Mini label="Certified" value={resume.certifications.length ? `${resume.certifications.length} cert${resume.certifications.length > 1 ? 's' : ''}` : '—'} icon="shield" />
+      </div>
+    </>,
+    <>
+      <Field label="Main Skill" value={skills[skillA] || 'Skill'} options={skills} onPick={setSkillA} />
+      <Field label="Also Strong In" value={skills[skillB] || 'Skill'} options={skills} onPick={setSkillB} />
+      <div className="field__row">
+        <Mini label="Core Skills" value={`${resume.stats.skills}`} icon="activity" />
+        <Mini label="Experience" value={`${resume.stats.years}${resume.stats.yearsPlus ? '+' : ''} yrs`} icon="clock" />
+      </div>
+    </>,
+    <>
+      <Field label="Contact By" value={contact?.k || 'Email'} options={contacts.map((c) => c.k)} onPick={setVia} />
+      <Field label="Details" value={contact?.v || '—'} />
+      <div className="field__row">
+        <Mini label="City" value={resume.location?.split(',')[0] || '—'} icon="pin" />
+        <Mini label="Availability" value="Open" icon="clock" />
+      </div>
+    </>,
+  ];
+
   const last = step === STEPS.length - 1;
   return (
     <div className="pcard">
@@ -92,63 +186,65 @@ function ProfileCard({ resume }: { resume: Resume }) {
         ))}
       </ol>
       <div className="pcard__rows" key={step} data-search>
-        {rows[step].map((r) => (
-          <label key={r.label} className="pcard__row">
-            <small>{r.label}</small>
-            <span>{r.value}</span>
-          </label>
-        ))}
+        {body[step]}
       </div>
       {last ? (
         <a className="pill pcard__btn" href={resume.email ? `mailto:${resume.email}` : '#contact'}>
-          Get in touch <Icon name="arrowRight" size={14} />
+          <span>Get in Touch</span> <Icon name="arrowRight" size={15} />
         </a>
       ) : (
         <button className="pill pcard__btn" onClick={() => setStep((s) => s + 1)}>
-          Continue <Icon name="arrowRight" size={14} />
+          <span>Continue</span> <Icon name="arrowRight" size={15} />
         </button>
       )}
       <p className="pcard__foot">
-        {resume.links.linkedin ? (
+        {isExample ? (
           <>
-            Prefer LinkedIn?{' '}
-            <a href={resume.links.linkedin} target="_blank" rel="noreferrer">
-              View profile
-            </a>
+            Have a CV?{' '}
+            <button onClick={onUpload}>Upload it</button>
           </>
         ) : (
-          'Usually replies within a day'
+          <>
+            Need changes? <button onClick={onEdit}>Edit</button> · <button onClick={onUpload}>New CV</button> · <button onClick={onReset}>Example</button>
+          </>
         )}
       </p>
     </div>
   );
 }
 
-export function Hero({ resume, isExample, onUpload }: { resume: Resume; isExample: boolean; onUpload: () => void }) {
+interface HeroProps extends CardProps {}
+
+export function Hero({ resume, isExample, onUpload, onEdit, onReset }: HeroProps) {
   const [role, focus] = splitHeadline(resume.headline);
-  const motto = (resume.motto || '').replace(/\.$/, '').split(/\.\s*/);
+  // the headline is the motto split over two lines, like "Advanced care. / Human connection."
+  const parts = (resume.motto || '').replace(/\.$/, '').split(/\.\s*/).filter(Boolean);
+  const line1 = parts.length > 1 ? `${parts[0]}.` : resume.name;
+  const line2 = parts.length > 1 ? `${parts.slice(1).join('. ')}.` : role || resume.headline;
   const chipIcons: IconName[] = ['sparkle', 'file', 'shield', 'clock'];
   return (
     <section id="home" className="hero" aria-label="Introduction">
       <div className="hero__sky" aria-hidden>
-        <span className="hero__sun" />
+        <span className="hero__glow" />
         <span className="hero__rays" />
       </div>
       <div className="wrap hero__grid">
         <div className="hero__copy">
           <p className="hero__tag">
-            <Icon name="sparkle" size={12} /> {focus || 'Portfolio'}
+            <Icon name="sparkle" size={13} /> {focus || role || 'Portfolio'}
           </p>
           <h1 className="hero__title" data-search>
-            {resume.name}
-            <span>{role || resume.headline}</span>
+            {line1}
+            <span>{line2}</span>
           </h1>
-          {motto.length > 1 && <p className="hero__motto">{motto.join('. ')}.</p>}
-          <p className="hero__intro">{resume.summary ? firstSentence(resume.summary) : resume.tagline}</p>
+          <p className="hero__intro">
+            {resume.name}
+            {role ? `, ${role}` : ''}. {resume.summary ? firstSentence(resume.summary) : resume.tagline}
+          </p>
           <ul className="hero__chips">
             {resume.skills.slice(0, 4).map((s, i) => (
               <li key={s} style={{ ['--i' as string]: i }} data-search>
-                <Icon name={chipIcons[i]} size={17} />
+                <Icon name={chipIcons[i]} size={22} />
                 <span>{s}</span>
               </li>
             ))}
@@ -156,15 +252,15 @@ export function Hero({ resume, isExample, onUpload }: { resume: Resume; isExampl
           <div className="hero__actions">
             {isExample ? (
               <button className="pill hero__btn" onClick={onUpload}>
-                Upload your CV
+                Upload Your CV
               </button>
             ) : (
               <a className="pill hero__btn" href={resume.email ? `mailto:${resume.email}` : '#contact'}>
-                Get in touch
+                Get in Touch
               </a>
             )}
             <a className="hero__link" href="#skills">
-              Explore skills <Icon name="arrowRight" size={14} />
+              Explore Skills <Icon name="arrowRight" size={16} />
             </a>
           </div>
         </div>
@@ -172,7 +268,7 @@ export function Hero({ resume, isExample, onUpload }: { resume: Resume; isExampl
           <img src={hologram} alt="" />
           <span className="hero__ring" />
         </div>
-        <ProfileCard resume={resume} />
+        <ProfileCard resume={resume} isExample={isExample} onUpload={onUpload} onEdit={onEdit} onReset={onReset} />
       </div>
     </section>
   );
@@ -188,7 +284,7 @@ function Stat({ icon, value, suffix = '', label, run, delay }: { icon: IconName;
   return (
     <li className="stat">
       <span className="stat__icon">
-        <Icon name={icon} size={28} />
+        <Icon name={icon} size={36} />
       </span>
       <span>
         <b aria-label={`${value}${suffix}`}>

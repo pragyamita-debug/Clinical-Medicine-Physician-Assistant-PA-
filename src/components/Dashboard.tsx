@@ -26,16 +26,12 @@ export function Dashboard({ profile, isExample, onUploadNew, onEdit, onReset, on
         name={resume.name}
         tagline={role || resume.headline}
         email={resume.email}
-        goals={resume.goals}
         active={active}
         isExample={isExample}
         onUploadNew={onUploadNew}
-        onEdit={onEdit}
-        onDownloadCv={onDownloadCv}
-        onReset={onReset}
       />
       <main>
-        <Hero resume={resume} isExample={isExample} onUpload={onUploadNew} />
+        <Hero resume={resume} isExample={isExample} onUpload={onUploadNew} onEdit={onEdit} onReset={onReset} />
         <StatsCard resume={resume} />
         <SkillsSection resume={resume} />
         <ExperienceSection resume={resume} />
