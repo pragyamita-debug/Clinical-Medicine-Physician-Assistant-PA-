@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import hologram from '../assets/photos/hologram.jpg';
+// hologram.jpg is split into two layers so the body can turn on its own:
+// holo-base.jpg = the scene with the body removed, holo-body.png = the body cut out (alpha)
+import holoBase from '../assets/photos/holo-base.jpg';
+import holoBody from '../assets/photos/holo-body.png';
 import video from '../assets/photos/video.jpg';
 import { useCountUp } from '../hooks/useCountUp';
 import { useInView } from '../hooks/useInView';
@@ -266,8 +269,13 @@ export function Hero({ resume, isExample, onUpload, onEdit, onReset }: HeroProps
         </div>
         <div className="hero__holo" aria-hidden>
           <div className="hero__frame">
-            <img src={hologram} alt="" />
+            <img className="hero__base" src={holoBase} alt="" />
+            <span className="hero__orbit hero__orbit--a" />
+            <span className="hero__orbit hero__orbit--b" />
             <span className="hero__ring" />
+            <div className="hero__body" style={{ ['--body' as string]: `url(${holoBody})` }}>
+              <img src={holoBody} alt="" />
+            </div>
           </div>
         </div>
         <ProfileCard resume={resume} isExample={isExample} onUpload={onUpload} onEdit={onEdit} onReset={onReset} />
